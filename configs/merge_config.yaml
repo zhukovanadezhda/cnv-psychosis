@@ -1,0 +1,3 @@
+annotations_file: "data/VCF/merged_annotations.csv"
+cnv_file: "results/all_cnv.csv"
+output_file: "results//merged_cnv.csv"

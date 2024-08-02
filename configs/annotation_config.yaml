@@ -1,0 +1,4 @@
+data_path: "data/VCF"
+result_path: "results"
+classifycnv_path: "tools/ClassifyCNV"
+genome_build: "hg38"
