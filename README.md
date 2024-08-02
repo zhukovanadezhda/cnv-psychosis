@@ -5,7 +5,7 @@
 *nadezhda.zhukova@inserm.fr*  
 
 1 Université Paris Cité, 75013 Paris, France.  
-2 Inserm U1266, Université de Psychiatrie et Neurosciences de Paris, 75014 Paris, France.  
+2 Inserm U1266, Institut de Psychiatrie et Neurosciences de Paris, 75014 Paris, France.  
 
 ---
 
