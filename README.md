@@ -1,4 +1,4 @@
-# The impact of copy number variants (CNVs) in individuals in early phases of psychosis
+# The impact of copy number variants in individuals in early phases of psychosis
 ---  
   
 #### **Nadezhda ZHUKOVA**<sup>1, 2</sup>  
