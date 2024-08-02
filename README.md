@@ -1,11 +1,11 @@
-# The impact of copy number variants (CNVs) in individuals in early phases of psychosis
+# The impact of copy number variants in individuals in early phases of psychosis
 ---  
   
 #### **Nadezhda ZHUKOVA**<sup>1, 2</sup>  
 *nadezhda.zhukova@inserm.fr*  
 
 1 Université Paris Cité, 75013 Paris, France.  
-2 Inserm U1266, Université de Psychiatrie et Neurosciences de Paris, 75014 Paris, France.  
+2 Inserm U1266, Institut de Psychiatrie et Neurosciences de Paris, 75014 Paris, France.  
 
 ---
 
