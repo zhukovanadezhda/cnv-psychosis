@@ -119,7 +119,6 @@ if __name__ == "__main__":
                         help='Path to the output CSV file.')
     parser.add_argument('--verbose', action='store_true', 
                         help='Enable verbose mode for logging.')
-
     parser.add_argument('--cnvLength', action='store_true', 
                         help='Filter out CNVs with cnvLength < 1kbp.')
     parser.add_argument('--cnvQual', action='store_true', 
