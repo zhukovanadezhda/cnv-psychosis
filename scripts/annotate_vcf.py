@@ -237,6 +237,8 @@ def vcf_to_csv(vcf_filename: str, csv_filename: str) -> None:
         data,
         columns=['id', 'chr', 'start', 'end', 'qual', 'filter', 'type']
     )
+    df['start'] = df['start'].astype(int)
+    df['start'] = df['start'] + 1
     df.to_csv(csv_filename, index=False)
 
 
@@ -301,37 +303,35 @@ def process_single_annotation_file(
     with open(annotation_file, 'r', encoding="utf-8") as file:
         reader = csv.reader(file, delimiter='\t')
         annotations = list(reader)
-        headers = ["ID"] + annotations[0][1:7] + annotations[0][-2:]
 
+        # Compose headers
+        headers = ["ID"] + annotations[0][1:7] + annotations[0][-2:] + ['Quality', 'Filter', 'Copy_number']
+
+        # Generate file_id and load the corresponding VCF data
         file_id = annotation_file.stem.replace('annotated_', '')
         vcf_file_path = vcf_path / f'{file_id}.csv'
-        vcf_data = (
-            pd.read_csv(vcf_file_path)
-            if vcf_file_path.exists()
-            else pd.DataFrame()
-        )
+        vcf_data = pd.read_csv(vcf_file_path)
 
-        for idx, row in enumerate(annotations[1:]):
-            vcf_entry = (
-                vcf_data.iloc[idx]
-                if not vcf_data.empty
-                else {}
-            )
-            qual = (
-                vcf_entry.get('qual', '')
-                if 'qual' in vcf_entry
-                else ''
-            )
-            filter = (
-                vcf_entry.get('filter', '')
-                if 'filter' in vcf_entry
-                else ''
-            )
-            cnv_type = (
-                vcf_entry.get('type', '')
-                if 'type' in vcf_entry
-                else ''
-            )
+        # Create a lookup dictionary from the VCF data using the composed key
+        vcf_lookup = {
+            (str(row['chr']), str(row['start']), str(row['end'])): row
+            for _, row in vcf_data.iterrows()
+        }
+
+        # Process each row in the annotation file
+        for row in annotations[1:]:
+            # Construct the key based on chr, start, end from the annotation row (with file_id for context)
+            key = (row[1], row[2], row[3])
+
+            # Lookup in the VCF data using the composed key
+            vcf_entry = vcf_lookup.get(key, {})
+
+            # Extract required fields or set defaults
+            qual = vcf_entry.get('qual', '')
+            filter = vcf_entry.get('filter', '')
+            cnv_type = vcf_entry.get('type', '')
+
+            # Append the row with the necessary fields
             rows.append(
                 [file_id.split(".")[0]] + row[1:7] + row[-2:] + [qual, filter, cnv_type]
             )
@@ -352,7 +352,7 @@ def write_output_file(output_file: Path,
     """
     with open(output_file, 'w', newline='', encoding="utf-8") as file:
         writer = csv.writer(file)
-        writer.writerow(headers + ['Quality', 'Filter', 'Copy_number'])
+        writer.writerow(headers)
         writer.writerows(rows)
 
 
@@ -392,7 +392,7 @@ def main(config_file: str, verbose: bool, keeptmp: bool) -> None:
     config = read_config(config_file)
     validate_paths(config)
     paths = {
-        'vcf': Path(config['data_path']) / 'VCF',
+        'vcf': Path(config['data_path']) / 'CSV',
         'bed': Path(config['data_path']) / 'BED',
         'annotations': Path(config['data_path']) / 'ANNOTATIONS'
     }

@@ -32,6 +32,7 @@ def setup_logging() -> None:
         format='%(asctime)s - %(levelname)s - %(message)s'
     )
 
+
 def cnv_to_cytoband(cnv: str, cytoband_bed: pybedtools.BedTool) -> str:
     """
     Map a CNV to its corresponding cytogenetic bands.
@@ -61,6 +62,7 @@ def cnv_to_cytoband(cnv: str, cytoband_bed: pybedtools.BedTool) -> str:
     bands = {interval[7] for interval in result}
 
     return '-'.join(sorted(bands))
+
 
 def main(vcf_file: str, cytoband_file: str, output_file: str) -> None:
     """
@@ -116,6 +118,7 @@ def main(vcf_file: str, cytoband_file: str, output_file: str) -> None:
     except Exception as e:
         logging.error("Error during processing: %s", e)
         sys.exit(1)
+
 
 if __name__ == "__main__":
     setup_logging()
