@@ -1,6 +1,7 @@
 rule all:
     input:
-        "results/filtered_annotations.csv"
+        "results/merged_per_individual_annotations.csv",
+        "results/merged_annotations.csv"
 
 rule download_classifycnv:
     output:
@@ -92,5 +93,28 @@ rule filter_cnv:
         "results/filtered_annotations.csv"
     shell:
         """
-        python scripts/filter_cnv.py --csv_file {input.csv_file} --output_file {output} --cnvLength --cnvQual --cnvBinSupportRatio --cnvCopyRatio --Chromosome --Classification
+        python scripts/filter_cnv.py --csv_file {input.csv_file} --output_file {output} --cnvQual --cnvBinSupportRatio --cnvCopyRatio --Chromosome --Classification
         """
+
+rule create_stat_per_individual:
+    input:
+        csv_file="results/filtered_annotations.csv"
+    output:
+        "results/per_individual_annotations.csv"
+    shell:
+        """
+        python scripts/create_individual_stat.py {input.csv_file} {output}
+        """
+
+rule merge_genetic_and_clinical:
+    input: 
+        csv_file="results/per_individual_annotations.csv"
+    output:
+        "results/merged_per_individual_annotations.csv"
+    shell:
+        """
+        python scripts/merge_genetic_and_clinical.py {input.csv_file} {output}
+        """
+
+
+
