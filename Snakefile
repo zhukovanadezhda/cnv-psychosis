@@ -93,7 +93,7 @@ rule filter_cnv:
         "results/filtered_annotations.csv"
     shell:
         """
-        python scripts/filter_cnv.py --csv_file {input.csv_file} --output_file {output} --cnvQual --cnvBinSupportRatio --cnvCopyRatio --Chromosome --Classification
+        python scripts/filter_cnv.py --csv_file {input.csv_file} --output_file {output} --cnvLength --cnvQual --cnvBinSupportRatio --cnvCopyRatio --Chromosome --Classification
         """
 
 rule create_stat_per_individual:
@@ -108,13 +108,19 @@ rule create_stat_per_individual:
 
 rule merge_genetic_and_clinical:
     input: 
-        csv_file="results/per_individual_annotations.csv"
+        indiv_file="results/per_individual_annotations.csv",
+        cnv_file="results/filtered_annotations.csv"
+
     output:
-        "results/merged_per_individual_annotations.csv"
+        indiv_file="results/merged_per_individual_annotations.csv",
+        cnv_file="results/merged_all_cnv_annotations.csv"
+
     shell:
         """
-        python scripts/merge_genetic_and_clinical.py {input.csv_file} {output}
+        python scripts/merge_genetic_and_clinical.py {input.indiv_file} {output.indiv_file}
+        python scripts/merge_genetic_and_clinical.py {input.cnv_file} {output.cnv_file}
         """
+
 
 
 
