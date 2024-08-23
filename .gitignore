@@ -4,6 +4,8 @@
 *.bed
 *.tsv
 *.png
+*.txt
+tools/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
