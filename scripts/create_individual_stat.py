@@ -29,6 +29,18 @@ def setup_logging() -> None:
         format='%(asctime)s - %(levelname)s - %(message)s'
     )
 
+
+def clean_gene_list(gene_list: str) -> str:
+    """
+    Cleans up the gene list by removing leading/trailing commas and spaces,
+    ensuring proper formatting, removing duplicates, and sorting the list.
+    """
+    # Split the string by commas, strip whitespace, and remove duplicates
+    genes = sorted(set(gene.strip() for gene in gene_list.split(',') if gene.strip()))
+    # Join the cleaned list into a properly formatted string
+    return ', '.join(genes)
+
+
 def compute_statistics_per_individual(df: pd.DataFrame) -> pd.DataFrame:
     """
     Compute statistics per individual from the annotated CNV DataFrame.
@@ -51,59 +63,70 @@ def compute_statistics_per_individual(df: pd.DataFrame) -> pd.DataFrame:
     df["Known or predicted dosage-sensitive genes"] = df["Known or predicted dosage-sensitive genes"].fillna("")
     df["is_long"] = (df["End"] - df["Start"]) > 1_000_000
 
-
     # Calculate additional flags
     df["is_long_brain"] = df["Is_brain"] & df["is_long"]
 
     # Group and aggregate data
     aggregated = df.groupby(["ID", "Type"]).agg(
-        CNV_length=("End", lambda x: (x - df.loc[x.index, "Start"]).sum()),
-        NB_CNV=("ID", "size"),
-        SUM_quality=("Quality", "sum"),
-        Copy_number=("Copy_number", "sum"),        
+        Avg_quality=("Quality", "sum"),
+        Avg_copy_number=("Copy_number", "sum"),        
         NB_rare=("is_rare", "sum"),
-        NB_long=("is_long", "sum"),
-        NB_brain=("Is_brain", "sum"),
-        NB_long_rare=("is_long_brain", "sum"),
+        NB_long_rare=("is_long", "sum"),
+        NB_brain_rare=("Is_brain", "sum"),
+        NB_long_brain_rare=("is_long_brain", "sum"),
         Rare_length=("End", lambda x: (x[df["is_rare"]] - df.loc[x[df["is_rare"]].index, "Start"]).sum()),
+        Long_rare_length=("End", lambda x: (x[df["is_long"] & df["is_rare"]] - df.loc[x[df["is_long"] & df["is_rare"]].index, "Start"]).sum()),
+        Brain_rare_length=("End", lambda x: (x[df["Is_brain"] & df["is_rare"]] - df.loc[x[df["Is_brain"] & df["is_rare"]].index, "Start"]).sum()),
+        Long_brain_rare_length=("End", lambda x: (x[df["is_long_brain"] & df["is_rare"]] - df.loc[x[df["is_long_brain"] & df["is_rare"]].index, "Start"]).sum()),
         Protein_coding_genes=("All protein coding genes", lambda x: ', '.join(set(x))),
         Brain_genes=("Brain_genes", lambda x: ', '.join(set(x))),
         Dosage_sensitive_genes=("Known or predicted dosage-sensitive genes", lambda x: ', '.join(set(x))),
-        Likely_benign=("Classification", lambda x: (x == "Likely benign").sum()),
-        Likely_pathogenic=("Classification", lambda x: (x == "Likely pathogenic").sum()),
-        Pathogenic=("Classification", lambda x: (x == "Pathogenic").sum()),
-        Uncertain_significance=("Classification", lambda x: (x == "Uncertain significance").sum())
-        
     ).reset_index()
+
+    # Calculate average copy number and quality
+    aggregated["Avg_copy_number"] = aggregated["Avg_copy_number"] / aggregated["NB_rare"]
+    aggregated["Avg_quality"] = aggregated["Avg_quality"] / aggregated["NB_rare"]
+
+    # Apply cleaning to gene columns
+    aggregated["Protein_coding_genes"] = aggregated["Protein_coding_genes"].apply(clean_gene_list)
+    aggregated["Brain_genes"] = aggregated["Brain_genes"].apply(clean_gene_list)
+    aggregated["Dosage_sensitive_genes"] = aggregated["Dosage_sensitive_genes"].apply(clean_gene_list)
 
     # Calculate gene counts and rare CNV gene counts
-    aggregated["NB_genes"] = aggregated["Protein_coding_genes"].apply(lambda row: len(row.split(", ")) if row else 0)
-    aggregated["NB_brain_genes"] = aggregated["Brain_genes"].apply(lambda row: len(row.split(", ")) if row else 0)
-
-    df_rare = df[df["is_rare"]].groupby(["ID", "Type"]).agg(
-        Protein_coding_genes_in_rare_CNV=("All protein coding genes", lambda x: ', '.join(set(x))),
-        Brain_genes_in_rare_CNV=("Brain_genes", lambda x: ', '.join(set(x))),
-    ).reset_index()
-
-    df_rare["NB_genes_rare"] = df_rare["Protein_coding_genes_in_rare_CNV"].apply(lambda row: len(row.split(", ")) if row else 0)
-    df_rare["NB_brain_genes_rare"] = df_rare["Brain_genes_in_rare_CNV"].apply(lambda row: len(row.split(", ")) if row else 0)
-
-    # Merge rare CNV data back into the main DataFrame
-    aggregated = aggregated.merge(df_rare, on=["ID", "Type"], how="left")
+    aggregated["NB_genes_rare"] = aggregated["Protein_coding_genes"].apply(lambda row: len(row.split(", ")) if row else 0)
+    aggregated["NB_brain_genes_rare"] = aggregated["Brain_genes"].apply(lambda row: len(row.split(", ")) if row else 0)
 
     # Fill missing values in the merged DataFrame
     aggregated.fillna({
         "Rare_length": 0,
         "NB_genes_rare": 0,
-        "NB_brain_genes_rare": 0,
-        "Protein_coding_genes_in_rare_CNV": "",
-        "Brain_genes_in_rare_CNV": ""
+        "NB_brain_genes_rare": 0
     }, inplace=True)
 
     # Map CNV type to a numeric value
     aggregated["Type_numeric"] = aggregated["Type"].map({"DEL": 1, "DUP": 2})
 
-    return aggregated
+    # Pivot the table to create separate columns for 'del' and 'dup'
+    aggregated_pivot = aggregated.pivot_table(
+        index=['ID'],
+        columns='Type',
+        values=[
+            'Avg_quality', 'Avg_copy_number', 'NB_rare', 'NB_long_rare', 
+            'NB_brain_rare', 'NB_long_brain_rare', 'Rare_length', 
+            'Long_rare_length', 'Brain_rare_length', 'Long_brain_rare_length', 
+            'Protein_coding_genes', 'Brain_genes', 'Dosage_sensitive_genes',
+            'NB_genes_rare', 'NB_brain_genes_rare'
+        ],
+        aggfunc='first'
+    )
+
+    # Flatten multi-level columns
+    aggregated_pivot.columns = ['_'.join(col).strip() for col in aggregated_pivot.columns.values]
+
+    # Reset index to convert it into columns
+    aggregated_pivot.reset_index(inplace=True)
+
+    return aggregated_pivot
 
 def main(input_csv_file: str, output_csv_file: str) -> None:
     """
