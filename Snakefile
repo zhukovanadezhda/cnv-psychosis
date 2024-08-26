@@ -10,13 +10,25 @@ rule all:
         rm notebooks/*_executed.ipynb
         """
 
+rule produce_pathogenic_file:
+    input: 
+        nb="notebooks/confirm_known_cnv.ipynb",
+        cnv_file="results/merged_all_cnv_annotations.csv",
+        db="databases/marshal_cnv.csv"
+    output:
+        "results/pathogenic_cnv_with_marshal.csv"
+    shell:
+        """
+        jupyter nbconvert --to notebook --execute --inplace --output {input.nb}_executed.ipynb {input.nb}
+        """
+
 rule execute_notebooks:
     input:
         nb="notebooks/{notebook}.ipynb",
-        file_1='data/metadata.csv',
+        file_1="data/metadata.csv",
         file_2="databases/marshal_cnv.csv",
         file_3="results/merged_all_cnv_annotations.csv",
-        file_4='results/merged_per_individual_annotations.csv',
+        file_4="results/merged_per_individual_annotations.csv",
         file_5="results/uncertain_merged_all_cnv_annotations_filtered_per_ind_with_clinical.csv"
     output:
         "notebooks/{notebook}_executed.ipynb"
@@ -129,47 +141,56 @@ rule filter_cnv:
         """
 
 
-rule create_stat_per_individual:
+rule create_initial_stat_per_individual:
     input:
-        csv_file="results/filtered_annotations.csv",
-        no_patho_file="results/uncertain_merged_all_cnv_annotations_filtered.csv"
+        csv_file="results/filtered_annotations.csv"
     output:
-        all_cnv="results/per_individual_annotations.csv",
-        no_patho_cnv="results/uncertain_merged_all_cnv_annotations_filtered_per_ind.csv"
+        all_cnv="results/per_individual_annotations.csv"
     shell:
         """
         python scripts/create_individual_stat.py {input.csv_file} {output.all_cnv}
-        python scripts/create_individual_stat.py {input.no_patho_file} {output.no_patho_cnv}
         """
 
-
 rule merge_genetic_and_clinical:
-    input: 
+    input:
         indiv_file="results/per_individual_annotations.csv",
-        cnv_file="results/filtered_annotations.csv",
-        no_patho_file="results/uncertain_merged_all_cnv_annotations_filtered_per_ind.csv"
+        cnv_file="results/filtered_annotations.csv"
     output:
         indiv_file="results/merged_per_individual_annotations.csv",
-        cnv_file="results/merged_all_cnv_filtered_annotations.csv",
-        no_patho_file="results/uncertain_merged_all_cnv_annotations_filtered_per_ind_with_clinical.csv"
+        cnv_file="results/merged_all_cnv_annotations.csv"
     shell:
         """
         python scripts/merge_genetic_and_clinical.py {input.indiv_file} {output.indiv_file}
         python scripts/merge_genetic_and_clinical.py {input.cnv_file} {output.cnv_file}
-        python scripts/merge_genetic_and_clinical.py {input.no_patho_file} {output.no_patho_file}
         """
 
-
 rule exclude_pathogenic:
-    input: 
+    input:
         cnv_file="results/merged_all_cnv_annotations.csv",
         patho_file="results/pathogenic_cnv_with_marshal.csv"
-    output: 
+    output:
         no_patho="results/uncertain_merged_all_cnv_annotations_filtered.csv"
     shell:
         """
         python scripts/remove_pathogenic_cnv.py {input.cnv_file} {input.patho_file} {output.no_patho}
         """
 
+rule create_updated_stat_per_individual:
+    input:
+        no_patho_file="results/uncertain_merged_all_cnv_annotations_filtered.csv"
+    output:
+        no_patho_cnv="results/uncertain_merged_all_cnv_annotations_filtered_per_ind.csv"
+    shell:
+        """
+        python scripts/create_individual_stat.py {input.no_patho_file} {output.no_patho_cnv}
+        """
 
-
+rule final_merge_with_clinical:
+    input:
+        no_patho_file="results/uncertain_merged_all_cnv_annotations_filtered_per_ind.csv"
+    output:
+        no_patho_file="results/uncertain_merged_all_cnv_annotations_filtered_per_ind_with_clinical.csv"
+    shell:
+        """
+        python scripts/merge_genetic_and_clinical.py {input.no_patho_file} {output.no_patho_file}
+        """
