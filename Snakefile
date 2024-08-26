@@ -1,8 +1,30 @@
+import glob
+
+notebooks = [nb.replace("notebooks/", "").replace(".ipynb", "") for nb in glob.glob("notebooks/*.ipynb")]
+
 rule all:
     input:
-        "results/uncertain_merged_all_cnv_annotations_filtered_per_ind_with_clinical.csv",
-        "results/merged_per_individual_annotations.csv",
-        "results/merged_annotations.csv"
+        expand("notebooks/{notebook}_executed.ipynb", notebook=notebooks)
+    shell:
+        """
+        rm notebooks/*_executed.ipynb
+        """
+
+rule execute_notebooks:
+    input:
+        nb="notebooks/{notebook}.ipynb",
+        file_1='data/metadata.csv',
+        file_2="databases/marshal_cnv.csv",
+        file_3="results/merged_all_cnv_annotations.csv",
+        file_4='results/merged_per_individual_annotations.csv',
+        file_5="results/uncertain_merged_all_cnv_annotations_filtered_per_ind_with_clinical.csv"
+    output:
+        "notebooks/{notebook}_executed.ipynb"
+    shell:
+        """
+        export PYDEVD_DISABLE_FILE_VALIDATION=1
+        jupyter nbconvert --to notebook --execute --inplace --output {wildcards.notebook}_executed.ipynb {input.nb}
+        """
 
 
 rule download_classifycnv:
