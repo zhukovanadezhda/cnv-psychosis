@@ -1,7 +1,9 @@
 rule all:
     input:
+        "results/uncertain_merged_all_cnv_annotations_filtered_per_ind_with_clinical.csv",
         "results/merged_per_individual_annotations.csv",
         "results/merged_annotations.csv"
+
 
 rule download_classifycnv:
     output:
@@ -15,6 +17,7 @@ rule download_classifycnv:
         rm tools/ClassifyCNV.zip
         """
 
+
 rule download_cnv_database:
     output:
         "databases/dgvMerged.txt"
@@ -25,6 +28,7 @@ rule download_cnv_database:
         rm dgvMerged.txt.gz
         """
 
+
 rule download_brain_database:
     output:
         "databases/brain_database.tsv"
@@ -32,6 +36,7 @@ rule download_brain_database:
         """
         wget -O {output} "https://www.proteinatlas.org/search/tissue_category_rna%3Abrain%3BTissue+enriched%2CGroup+enriched%2CTissue+enhanced+AND+sort_by%3Atissue+specific+score?format=tsv&download=yes"
         """
+
 
 rule download_cytobands:
     output:
@@ -43,6 +48,7 @@ rule download_cytobands:
         rm cytoBand.txt.gz
         """
 
+
 rule annotate_vcf:
     input:
         config="configs/config.yaml"
@@ -52,6 +58,7 @@ rule annotate_vcf:
         """
         python scripts/annotate_vcf.py --config {input.config}
         """
+
 
 rule map_to_cytobands:
     input:
@@ -64,6 +71,7 @@ rule map_to_cytobands:
         python scripts/map_to_cytobands.py {input.annotated_vcf} {input.cytoband_file} {output}
         """
 
+
 rule define_brain_genes:
     input:
         vcf="results/cytoband_merged_annotations.csv",
@@ -74,6 +82,7 @@ rule define_brain_genes:
         """
         python scripts/define_brain_genes.py --input {input.vcf} --db {input.db_brain} --output {output}
         """
+
 
 rule identify_rare_cnv:
     input:
@@ -86,6 +95,7 @@ rule identify_rare_cnv:
         python scripts/identify_rare_cnv.py --input {input.cnv_file} --db {input.db_file} --output {output}
         """
 
+
 rule filter_cnv:
     input:
         csv_file="results/rare_brain_cytoband_merged_annotations.csv"
@@ -96,31 +106,48 @@ rule filter_cnv:
         python scripts/filter_cnv.py --csv_file {input.csv_file} --output_file {output} --cnvLength --cnvQual --cnvBinSupportRatio --cnvCopyRatio --Chromosome --Classification
         """
 
+
 rule create_stat_per_individual:
     input:
-        csv_file="results/filtered_annotations.csv"
+        csv_file="results/filtered_annotations.csv",
+        no_patho_file="results/uncertain_merged_all_cnv_annotations_filtered.csv"
     output:
-        "results/per_individual_annotations.csv"
+        all_cnv="results/per_individual_annotations.csv",
+        no_patho_cnv="results/uncertain_merged_all_cnv_annotations_filtered_per_ind.csv"
     shell:
         """
-        python scripts/create_individual_stat.py {input.csv_file} {output}
+        python scripts/create_individual_stat.py {input.csv_file} {output.all_cnv}
+        python scripts/create_individual_stat.py {input.no_patho_file} {output.no_patho_cnv}
         """
+
 
 rule merge_genetic_and_clinical:
     input: 
         indiv_file="results/per_individual_annotations.csv",
-        cnv_file="results/filtered_annotations.csv"
-
+        cnv_file="results/filtered_annotations.csv",
+        no_patho_file="results/uncertain_merged_all_cnv_annotations_filtered_per_ind.csv"
     output:
         indiv_file="results/merged_per_individual_annotations.csv",
-        cnv_file="results/merged_all_cnv_annotations.csv"
-
+        cnv_file="results/merged_all_cnv_filtered_annotations.csv",
+        no_patho_file="results/uncertain_merged_all_cnv_annotations_filtered_per_ind_with_clinical.csv"
     shell:
         """
         python scripts/merge_genetic_and_clinical.py {input.indiv_file} {output.indiv_file}
         python scripts/merge_genetic_and_clinical.py {input.cnv_file} {output.cnv_file}
+        python scripts/merge_genetic_and_clinical.py {input.no_patho_file} {output.no_patho_file}
         """
 
+
+rule exclude_pathogenic:
+    input: 
+        cnv_file="results/merged_all_cnv_annotations.csv",
+        patho_file="results/pathogenic_cnv_with_marshal.csv"
+    output: 
+        no_patho="results/uncertain_merged_all_cnv_annotations_filtered.csv"
+    shell:
+        """
+        python scripts/remove_pathogenic_cnv.py {input.cnv_file} {input.patho_file} {output.no_patho}
+        """
 
 
 
