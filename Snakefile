@@ -7,7 +7,7 @@ rule all:
         expand("notebooks/{notebook}_executed.ipynb", notebook=notebooks)
     shell:
         """
-        rm notebooks/*_executed.ipynb
+        rm notebooks/*executed.ipynb
         """
 
 rule produce_pathogenic_file:
@@ -19,7 +19,8 @@ rule produce_pathogenic_file:
         "results/pathogenic_cnv_with_marshal.csv"
     shell:
         """
-        jupyter nbconvert --to notebook --execute --inplace --output {input.nb}_executed.ipynb {input.nb}
+        export PYDEVD_DISABLE_FILE_VALIDATION=1
+        jupyter nbconvert --to notebook --execute --inplace --output executed.ipynb {input.nb}
         """
 
 rule execute_notebooks:
