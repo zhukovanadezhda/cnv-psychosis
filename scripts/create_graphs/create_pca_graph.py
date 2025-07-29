@@ -166,8 +166,8 @@ def plot_pca_scatter(ax, df, group_column, palette, title):
     plot_ellipse(ax, df, group_column, palette)
 
     ax.set_title(title, fontsize=16)
-    ax.set_xlabel('PCA1', fontsize=14)
-    ax.set_ylabel('PCA2', fontsize=14)
+    ax.set_xlabel('PC1', fontsize=14)
+    ax.set_ylabel('PC2', fontsize=14)
     ax.grid(True, linestyle='--', alpha=0.7)
     ax.legend(title=group_column.replace("_", " ").title(), 
               title_fontsize='13', fontsize='11')
@@ -194,8 +194,8 @@ def plot_pca_biplot(ax, pca, features):
     ax.set_xlim(-1.5, 2.5)
     ax.set_ylim(-1.8, 1.5)
     ax.set_title('PCA Biplot', fontsize=16)
-    ax.set_xlabel('PCA1', fontsize=14)
-    ax.set_ylabel('PCA2', fontsize=14)
+    ax.set_xlabel(f'PC1 ({round(pca.explained_variance_ratio_[0] * 100, 2)}%)', fontsize=14)
+    ax.set_ylabel(f'PC2 ({round(pca.explained_variance_ratio_[1] * 100, 2)}%)', fontsize=14)
     ax.grid(True, linestyle='--', alpha=0.6)
     ax.axhline(0, color='k', linestyle='--', linewidth=0.8, alpha=0.5)
     ax.axvline(0, color='k', linestyle='--', linewidth=0.8, alpha=0.5)
