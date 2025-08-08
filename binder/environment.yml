@@ -1,25 +1,24 @@
 name: cnv-psychosis
 channels:
-  - defaults
   - conda-forge
   - bioconda
 dependencies:
   - python=3.11
-  - matplotlib
-  - pandas
-  - seaborn
   - numpy
-  - scikit-posthocs
+  - pandas
   - scipy
   - scikit-learn
-  - snakemake
-  - imbalanced-learn
   - statsmodels
+  - matplotlib
+  - seaborn
+  - imbalanced-learn
+  - scikit-posthocs
+  - snakemake-minimal
+  - bedtools
+  - pybedtools
   - pyyaml
   - tqdm
   - json5
-  - jupyter
   - pip
   - pip:
-    - statannotations
-    - pybedtools
+      - statannotations
