@@ -25,22 +25,16 @@ cd cnv-psychosis
 ```
 ### Setup the conda environment
 
-Install [miniconda](https://docs.conda.io/en/latest/miniconda.html) and [mamba](https://github.com/mamba-org/mamba). Create the `cnv-psychosis` conda environment:
+Install [miniconda](https://docs.conda.io/en/latest/miniconda.html). Create the `cnv-psychosis` conda environment:
 
 ```bash
-mamba env create -f binder/environment.yml
+conda env create -f binder/environment.yml
 ```
 
 ### Load the environment
 
 ```bash
 conda activate cnv-psychosis
-```
-
-Remark: to deactivate an active environment, use:
-
-```bash
-conda deactivate
 ```
 
 ## Usage
@@ -50,7 +44,7 @@ conda deactivate
    To run the analysis workflows, use Snakemake:
 
    ```bash
-   snakemake --snakefile Snakefile
+   snakemake --snakefile Snakefile --cores <cores_number>
    ```
 
 ## Contact
