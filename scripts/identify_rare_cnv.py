@@ -127,8 +127,15 @@ if __name__ == "__main__":
     df_loss["varType"] = "loss"
     df_loss["observedGains"] = 0
     
-    df_all_variants.drop(df_all_variants[df_all_variants["varType"] == "gain+loss"].index, inplace=True)
-    df_all_variants = pd.concat([df_all_variants, df_gain, df_loss], axis=0)
+    df_all_variants.drop(
+        df_all_variants[df_all_variants["varType"] == "gain+loss"].index,
+        inplace=True
+        )
+    df_all_variants = pd.concat(
+        [
+            df_all_variants,
+            df_gain,
+            df_loss], axis=0)
     df_all_variants.sort_values(by=["chrom", "chromStart"], inplace=True)
     df_all_variants["varType"] = df_all_variants["varType"].apply(lambda x: "DUP" if x in ("gain", "duplication") else "DEL")
     df_all_variants.reset_index(drop=True, inplace=True)
@@ -141,9 +148,13 @@ if __name__ == "__main__":
     
     logging.info("Identifying rare CNVs")
     # Define rare CNVs in the CNV file with progress bar
-    df_annotated_cnv["is_rare"] = df_annotated_cnv.progress_apply(
+    df_annotated_cnv["Is_rare"] = df_annotated_cnv.progress_apply(
         lambda row: define_rare_cnv(
-            row["Chromosome"], row["Start"], row["End"], row["Type"], df_all_variants
+            row["Chromosome"],
+            row["Start"],
+            row["End"],
+            row["Type"],
+            df_all_variants
         ), axis=1
     )
     

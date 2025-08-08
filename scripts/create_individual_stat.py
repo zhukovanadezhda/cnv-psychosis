@@ -30,15 +30,47 @@ def setup_logging() -> None:
     )
 
 
-def clean_gene_list(gene_list: str) -> str:
-    """
-    Cleans up the gene list by removing leading/trailing commas and spaces,
-    ensuring proper formatting, removing duplicates, and sorting the list.
-    """
-    # Split the string by commas, strip whitespace, and remove duplicates
-    genes = sorted(set(gene.strip() for gene in gene_list.split(',') if gene.strip()))
-    # Join the cleaned list into a properly formatted string
-    return ', '.join(genes)
+def aggregate_group(group):
+
+    result = {
+        "Avg_quality": group["Quality"].mean(),
+        "Avg_copy_number": group["Copy_number"].mean()
+    }
+
+    flags = [
+        "Is_rare",
+        "Is_long_rare",
+        "Is_brain_rare",
+        "Is_only_brain_rare",
+        "Is_long_brain_rare",
+        "Is_long_only_brain_rare"
+    ]
+    
+    # Count occurrences and lengths
+    for flag in flags:
+        # Remove 'Is_' prefix
+        suffix = flag.lower()[3:]
+        mask = group[flag]
+        result[f"NB_{suffix}"] = mask.sum()
+        result[f"{suffix.capitalize()}_length"] = (
+            group.loc[mask, "End"] - group.loc[mask, "Start"]
+            ).sum()
+
+    # Genes (unique concatenation)
+    gene_fields = {
+        "Protein_coding_genes": "All protein coding genes",
+        "Brain_genes": "Brain_genes",
+        "Only_brain_genes": "Only_brain_genes",
+        "Dosage_sensitive_genes": "Known or predicted dosage-sensitive genes"
+    }
+    for key, col in gene_fields.items():
+        # Concatenate unique gene names
+        result[key] = ', '.join(sorted(set(group[col].dropna())))
+        # Count number of unique genes in rare CNVs
+        rare_mask = group["Is_rare"] & group[col].notna()
+        result[f"NB_{key.lower()}_rare"] = len(set(group.loc[rare_mask, col]))
+
+    return pd.Series(result)
 
 
 def compute_statistics_per_individual(df: pd.DataFrame) -> pd.DataFrame:
@@ -57,76 +89,33 @@ def compute_statistics_per_individual(df: pd.DataFrame) -> pd.DataFrame:
     """
     logging.info("Computing statistics per individual")
 
-    # Fill missing values for gene columns
-    df["All protein coding genes"] = df["All protein coding genes"].fillna("")
-    df["Brain_genes"] = df["Brain_genes"].fillna("")
-    df["Known or predicted dosage-sensitive genes"] = df["Known or predicted dosage-sensitive genes"].fillna("")
-    df["is_long"] = (df["End"] - df["Start"]) > 1_000_000
-
     # Calculate additional flags
-    df["is_long_brain"] = df["Is_brain"] & df["is_long"]
+    # At this point, we already have 'Is_brain', 'Is_only_brain', 'Is_rare'
+    df["Is_long"] = (df["End"] - df["Start"]) > 1_000_000
+    df["Is_long_brain"] = df["Is_brain"] & df["Is_long"]
+    df["Is_long_only_brain"] = df["Is_only_brain"] & df["Is_long"]
+    df["Is_long_rare"] = df["Is_rare"] & df["Is_long"]
+    df["Is_brain_rare"] = df["Is_brain"] & df["Is_rare"]
+    df["Is_only_brain_rare"] = df["Is_only_brain"] & df["Is_rare"]
+    df["Is_long_brain_rare"] = df["Is_long_brain"] & df["Is_rare"]
+    df["Is_long_only_brain_rare"] = df["Is_long_only_brain"] & df["Is_rare"]
 
-    # Group and aggregate data
-    aggregated = df.groupby(["ID", "Type"]).agg(
-        Avg_quality=("Quality", "sum"),
-        Avg_copy_number=("Copy_number", "sum"),        
-        NB_rare=("is_rare", "sum"),
-        NB_long_rare=("is_long", "sum"),
-        NB_brain_rare=("Is_brain", "sum"),
-        NB_long_brain_rare=("is_long_brain", "sum"),
-        Rare_length=("End", lambda x: (x[df["is_rare"]] - df.loc[x[df["is_rare"]].index, "Start"]).sum()),
-        Long_rare_length=("End", lambda x: (x[df["is_long"] & df["is_rare"]] - df.loc[x[df["is_long"] & df["is_rare"]].index, "Start"]).sum()),
-        Brain_rare_length=("End", lambda x: (x[df["Is_brain"] & df["is_rare"]] - df.loc[x[df["Is_brain"] & df["is_rare"]].index, "Start"]).sum()),
-        Long_brain_rare_length=("End", lambda x: (x[df["is_long_brain"] & df["is_rare"]] - df.loc[x[df["is_long_brain"] & df["is_rare"]].index, "Start"]).sum()),
-        Protein_coding_genes=("All protein coding genes", lambda x: ', '.join(set(x))),
-        Brain_genes=("Brain_genes", lambda x: ', '.join(set(x))),
-        Dosage_sensitive_genes=("Known or predicted dosage-sensitive genes", lambda x: ', '.join(set(x))),
-    ).reset_index()
-
-    # Calculate average copy number and quality
-    aggregated["Avg_copy_number"] = aggregated["Avg_copy_number"] / aggregated["NB_rare"]
-    aggregated["Avg_quality"] = aggregated["Avg_quality"] / aggregated["NB_rare"]
-
-    # Apply cleaning to gene columns
-    aggregated["Protein_coding_genes"] = aggregated["Protein_coding_genes"].apply(clean_gene_list)
-    aggregated["Brain_genes"] = aggregated["Brain_genes"].apply(clean_gene_list)
-    aggregated["Dosage_sensitive_genes"] = aggregated["Dosage_sensitive_genes"].apply(clean_gene_list)
-
-    # Calculate gene counts and rare CNV gene counts
-    aggregated["NB_genes_rare"] = aggregated["Protein_coding_genes"].apply(lambda row: len(row.split(", ")) if row else 0)
-    aggregated["NB_brain_genes_rare"] = aggregated["Brain_genes"].apply(lambda row: len(row.split(", ")) if row else 0)
-
-    # Fill missing values in the merged DataFrame
-    aggregated.fillna({
-        "Rare_length": 0,
-        "NB_genes_rare": 0,
-        "NB_brain_genes_rare": 0
-    }, inplace=True)
-
-    # Map CNV type to a numeric value
-    aggregated["Type_numeric"] = aggregated["Type"].map({"DEL": 1, "DUP": 2})
+    # Group by 'ID' and 'Type' and apply the aggregation function
+    df = df.groupby(["ID", "Type"]).apply(aggregate_group).reset_index()
 
     # Pivot the table to create separate columns for 'del' and 'dup'
-    aggregated_pivot = aggregated.pivot_table(
-        index=['ID'],
+    df_pivot = df.pivot_table(
+        index='ID',
         columns='Type',
-        values=[
-            'Avg_quality', 'Avg_copy_number', 'NB_rare', 'NB_long_rare', 
-            'NB_brain_rare', 'NB_long_brain_rare', 'Rare_length', 
-            'Long_rare_length', 'Brain_rare_length', 'Long_brain_rare_length', 
-            'Protein_coding_genes', 'Brain_genes', 'Dosage_sensitive_genes',
-            'NB_genes_rare', 'NB_brain_genes_rare'
-        ],
+        values=[col for col in df.columns if col not in ["ID", "Type"]],
         aggfunc='first'
     )
 
-    # Flatten multi-level columns
-    aggregated_pivot.columns = ['_'.join(col).strip() for col in aggregated_pivot.columns.values]
+    # Flatten columns
+    df_pivot.columns = ['_'.join(col).strip() for col in df_pivot.columns.values]
+    df_pivot.reset_index(inplace=True)
 
-    # Reset index to convert it into columns
-    aggregated_pivot.reset_index(inplace=True)
-
-    return aggregated_pivot
+    return df_pivot
 
 def main(input_csv_file: str, output_csv_file: str) -> None:
     """
