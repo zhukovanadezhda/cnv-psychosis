@@ -17,6 +17,8 @@ rule produce_pathogenic_file:
         db="databases/marshal_cnv.csv"
     output:
         "results/pathogenic_cnv_with_marshal.csv"
+    conda:
+        "binder/environment.yml"
     shell:
         """
         export PYDEVD_DISABLE_FILE_VALIDATION=1
@@ -33,6 +35,8 @@ rule execute_notebooks:
         file_5="results/uncertain_merged_all_cnv_annotations_filtered_per_ind_with_clinical.csv"
     output:
         "notebooks/{notebook}_executed.ipynb"
+    conda:
+        "binder/environment.yml"
     shell:
         """
         export PYDEVD_DISABLE_FILE_VALIDATION=1
@@ -64,15 +68,6 @@ rule download_cnv_database:
         """
 
 
-rule download_brain_database:
-    output:
-        "databases/brain_database.tsv"
-    shell:
-        """
-        wget -O {output} "https://www.proteinatlas.org/search/tissue_category_rna%3Abrain%3BTissue+enriched%2CGroup+enriched%2CTissue+enhanced+AND+sort_by%3Atissue+specific+score?format=tsv&download=yes"
-        """
-
-
 rule download_cytobands:
     output:
         "databases/cytoBand.txt"
@@ -89,6 +84,8 @@ rule annotate_vcf:
         config="configs/config.yaml"
     output:
         annotated_vcf="results/merged_annotations.csv"
+    conda:
+        "binder/environment.yml"
     shell:
         """
         python scripts/annotate_vcf.py --config {input.config}
@@ -101,6 +98,8 @@ rule map_to_cytobands:
         cytoband_file="databases/cytoBand.txt"
     output:
         "results/cytoband_merged_annotations.csv"
+    conda:
+        "binder/environment.yml"
     shell:
         """
         python scripts/map_to_cytobands.py {input.annotated_vcf} {input.cytoband_file} {output}
@@ -110,12 +109,15 @@ rule map_to_cytobands:
 rule define_brain_genes:
     input:
         vcf="results/cytoband_merged_annotations.csv",
-        db_brain="databases/brain_database.tsv"
+        db_brain="databases/brain_gene_consensus_ntm_consensus_no_pitular.tsv",
+        db_brain_only="databases/brain_gene_consensus_filtered_consensus_no_pitular.tsv"
     output:
         "results/brain_cytoband_merged_annotations.csv"
+    conda:
+        "binder/environment.yml"
     shell:
         """
-        python scripts/define_brain_genes.py --input {input.vcf} --db {input.db_brain} --output {output}
+        python scripts/define_brain_genes.py --input {input.vcf} --db-brain {input.db_brain} --db-brain-only {input.db_brain_only} --output {output}
         """
 
 
@@ -125,6 +127,8 @@ rule identify_rare_cnv:
         db_file="databases/dgvMerged.txt"
     output:
         "results/rare_brain_cytoband_merged_annotations.csv"
+    conda:
+        "binder/environment.yml"
     shell:
         """
         python scripts/identify_rare_cnv.py --input {input.cnv_file} --db {input.db_file} --output {output}
@@ -136,6 +140,8 @@ rule filter_cnv:
         csv_file="results/rare_brain_cytoband_merged_annotations.csv"
     output:
         "results/filtered_annotations.csv"
+    conda:
+        "binder/environment.yml"
     shell:
         """
         python scripts/filter_cnv.py --csv_file {input.csv_file} --output_file {output} --cnvLength --cnvQual --cnvBinSupportRatio --cnvCopyRatio --Chromosome --Classification
@@ -147,6 +153,8 @@ rule create_initial_stat_per_individual:
         csv_file="results/filtered_annotations.csv"
     output:
         all_cnv="results/per_individual_annotations.csv"
+    conda:
+        "binder/environment.yml"
     shell:
         """
         python scripts/create_individual_stat.py {input.csv_file} {output.all_cnv}
@@ -159,6 +167,8 @@ rule merge_genetic_and_clinical:
     output:
         indiv_file="results/merged_per_individual_annotations.csv",
         cnv_file="results/merged_all_cnv_annotations.csv"
+    conda:
+        "binder/environment.yml"
     shell:
         """
         python scripts/merge_genetic_and_clinical.py {input.indiv_file} {output.indiv_file}
@@ -171,6 +181,8 @@ rule exclude_pathogenic:
         patho_file="results/pathogenic_cnv_with_marshal.csv"
     output:
         no_patho="results/uncertain_merged_all_cnv_annotations_filtered.csv"
+    conda:
+        "binder/environment.yml"
     shell:
         """
         python scripts/remove_pathogenic_cnv.py {input.cnv_file} {input.patho_file} {output.no_patho}
@@ -181,6 +193,8 @@ rule create_updated_stat_per_individual:
         no_patho_file="results/uncertain_merged_all_cnv_annotations_filtered.csv"
     output:
         no_patho_cnv="results/uncertain_merged_all_cnv_annotations_filtered_per_ind.csv"
+    conda:
+        "binder/environment.yml"
     shell:
         """
         python scripts/create_individual_stat.py {input.no_patho_file} {output.no_patho_cnv}
@@ -191,6 +205,8 @@ rule final_merge_with_clinical:
         no_patho_file="results/uncertain_merged_all_cnv_annotations_filtered_per_ind.csv"
     output:
         no_patho_file="results/uncertain_merged_all_cnv_annotations_filtered_per_ind_with_clinical.csv"
+    conda:
+        "binder/environment.yml"
     shell:
         """
         python scripts/merge_genetic_and_clinical.py {input.no_patho_file} {output.no_patho_file}
